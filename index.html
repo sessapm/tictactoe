@@ -439,23 +439,21 @@
     const AC = window.AudioContext || window.webkitAudioContext;
     let ac = null;
 
-    // Browsers block audio until a user gesture. Unlock on first mousedown/touchstart
-    // (capture phase fires before click handlers, giving the context time to resume).
-    function unlockAudio() {
-      if (!ac) ac = new AC();
-      ac.resume();
+    // play(fn) — the only correct way to schedule Web Audio:
+    // 1. Create context lazily (requires no gesture)
+    // 2. resume() returns a Promise; await it so currentTime is live before scheduling
+    // 3. fn(ctx, now) receives a running context and a fresh timestamp
+    function play(fn) {
+      try {
+        if (!ac) ac = new AC();
+        (ac.state === 'running'
+          ? Promise.resolve()
+          : ac.resume()
+        ).then(() => fn(ac, ac.currentTime)).catch(() => {});
+      } catch(e) {}
     }
-    document.addEventListener('mousedown',  unlockAudio, { once: true, capture: true });
-    document.addEventListener('touchstart', unlockAudio, { once: true, capture: true });
 
-    function getAC() {
-      if (!ac) ac = new AC();
-      if (ac.state === 'suspended') ac.resume();
-      return ac;
-    }
-
-    function osc(freq, type, start, dur, vol, freqEnd) {
-      const c = getAC();
+    function osc(c, freq, type, start, dur, vol, freqEnd) {
       const o = c.createOscillator();
       const g = c.createGain();
       o.connect(g); g.connect(c.destination);
@@ -467,8 +465,7 @@
       o.start(start); o.stop(start + dur + 0.01);
     }
 
-    function noise(start, dur, vol) {
-      const c = getAC();
+    function noise(c, start, dur, vol) {
       const buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
       const data = buf.getChannelData(0);
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -485,45 +482,46 @@
 
     const SFX = {
       placeX() {
-        const t = getAC().currentTime;
-        osc(520, 'square', t,        0.04, 0.25, 800);
-        osc(800, 'square', t + 0.04, 0.06, 0.15, 600);
-        noise(t, 0.05, 0.08);
+        play((c, t) => {
+          osc(c, 520, 'square', t,        0.04, 0.25, 800);
+          osc(c, 800, 'square', t + 0.04, 0.06, 0.15, 600);
+          noise(c, t, 0.05, 0.08);
+        });
       },
       placeO() {
-        const t = getAC().currentTime;
-        osc(350, 'sine', t,        0.08, 0.28, 420);
-        osc(700, 'sine', t + 0.06, 0.10, 0.12, 560);
+        play((c, t) => {
+          osc(c, 350, 'sine', t,        0.08, 0.28, 420);
+          osc(c, 700, 'sine', t + 0.06, 0.10, 0.12, 560);
+        });
       },
       winX() {
-        const t = getAC().currentTime;
-        // Punchy ascending fanfare — square + saw
-        [[392,'square'],[523,'square'],[659,'square'],[784,'square'],[1047,'square']].forEach(([f,type],i) => {
-          osc(f, type, t + i * 0.10, 0.18, 0.22);
+        play((c, t) => {
+          [[392,'square'],[523,'square'],[659,'square'],[784,'square'],[1047,'square']]
+            .forEach(([f, type], i) => osc(c, f, type, t + i * 0.10, 0.18, 0.22));
+          [523,659,784,1047].forEach(f => osc(c, f, 'sine', t + 0.55, 0.5, 0.12));
+          noise(c, t, 0.06, 0.15);
         });
-        // Chord sting
-        [523,659,784,1047].forEach(f => osc(f,'sine', t + 0.55, 0.5, 0.12));
-        noise(t, 0.06, 0.15);
       },
       winO() {
-        const t = getAC().currentTime;
-        // Smooth ascending fanfare — sine
-        [[330,'sine'],[440,'sine'],[550,'sine'],[660,'sine'],[880,'sine']].forEach(([f,type],i) => {
-          osc(f, type, t + i * 0.10, 0.20, 0.22);
+        play((c, t) => {
+          [[330,'sine'],[440,'sine'],[550,'sine'],[660,'sine'],[880,'sine']]
+            .forEach(([f, type], i) => osc(c, f, type, t + i * 0.10, 0.20, 0.22));
+          [440,550,660,880].forEach(f => osc(c, f, 'sine', t + 0.55, 0.5, 0.12));
         });
-        [440,550,660,880].forEach(f => osc(f,'sine', t + 0.55, 0.5, 0.12));
       },
       draw() {
-        const t = getAC().currentTime;
-        osc(440, 'triangle', t,        0.18, 0.2);
-        osc(370, 'triangle', t + 0.20, 0.18, 0.18);
-        osc(311, 'triangle', t + 0.40, 0.30, 0.18);
-        osc(277, 'triangle', t + 0.65, 0.40, 0.14);
+        play((c, t) => {
+          osc(c, 440, 'triangle', t,        0.18, 0.2);
+          osc(c, 370, 'triangle', t + 0.20, 0.18, 0.18);
+          osc(c, 311, 'triangle', t + 0.40, 0.30, 0.18);
+          osc(c, 277, 'triangle', t + 0.65, 0.40, 0.14);
+        });
       },
       click() {
-        const t = getAC().currentTime;
-        noise(t, 0.04, 0.12);
-        osc(200, 'sine', t, 0.06, 0.1, 80);
+        play((c, t) => {
+          noise(c, t, 0.04, 0.12);
+          osc(c, 200, 'sine', t, 0.06, 0.1, 80);
+        });
       }
     };
     // ───────────────────────────────────────────────────────────────
