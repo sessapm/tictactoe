@@ -555,7 +555,7 @@
       cell.classList.remove('pop');
       void cell.offsetWidth;
       cell.classList.add('pop');
-      current === 'X' ? SFX.placeX() : SFX.placeO();
+      try { current === 'X' ? SFX.placeX() : SFX.placeO(); } catch(e) {}
 
       const winLine = checkWin();
       if (winLine) {
@@ -569,7 +569,7 @@
         scores.draw++;
         updateScores();
         gameOver = true;
-        SFX.draw();
+        try { SFX.draw(); } catch(e) {}
         setTimeout(() => celebrate(null, true), 700);
       } else {
         current = current === 'X' ? 'O' : 'X';
@@ -577,14 +577,14 @@
       }
     }));
 
-    document.getElementById('restart').addEventListener('click', () => { SFX.click(); reset(); });
+    document.getElementById('restart').addEventListener('click', () => { try { SFX.click(); } catch(e) {} reset(); });
     document.getElementById('reset-scores').addEventListener('click', () => {
-      SFX.click();
+      try { SFX.click(); } catch(e) {}
       scores.X = 0; scores.O = 0; scores.draw = 0;
       updateScores();
     });
     document.getElementById('play-again').addEventListener('click', () => {
-      SFX.click();
+      try { SFX.click(); } catch(e) {}
       overlay.classList.remove('show');
       stopParticles();
       reset();
@@ -632,7 +632,7 @@
         playerEl.textContent   = player;
         playerEl.className     = `win-player ${player.toLowerCase()}`;
         labelEl.textContent    = 'WINS!';
-        player === 'X' ? SFX.winX() : SFX.winO();
+        try { player === 'X' ? SFX.winX() : SFX.winO(); } catch(e) {}
         startParticles(
           player === 'X'
             ? ['#ff2d6b','#ff8c42','#ffd700','#ff2d6b','#ffffff']
