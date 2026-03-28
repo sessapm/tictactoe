@@ -439,14 +439,14 @@
     const AC = window.AudioContext || window.webkitAudioContext;
     let ac = null;
 
-    function ctx() {
+    function getAC() {
       if (!ac) ac = new AC();
       if (ac.state === 'suspended') ac.resume();
       return ac;
     }
 
     function osc(freq, type, start, dur, vol, freqEnd) {
-      const c = ctx();
+      const c = getAC();
       const o = c.createOscillator();
       const g = c.createGain();
       o.connect(g); g.connect(c.destination);
@@ -459,7 +459,7 @@
     }
 
     function noise(start, dur, vol) {
-      const c = ctx();
+      const c = getAC();
       const buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
       const data = buf.getChannelData(0);
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
@@ -476,18 +476,18 @@
 
     const SFX = {
       placeX() {
-        const t = ctx().currentTime;
+        const t = getAC().currentTime;
         osc(520, 'square', t,        0.04, 0.25, 800);
         osc(800, 'square', t + 0.04, 0.06, 0.15, 600);
         noise(t, 0.05, 0.08);
       },
       placeO() {
-        const t = ctx().currentTime;
+        const t = getAC().currentTime;
         osc(350, 'sine', t,        0.08, 0.28, 420);
         osc(700, 'sine', t + 0.06, 0.10, 0.12, 560);
       },
       winX() {
-        const t = ctx().currentTime;
+        const t = getAC().currentTime;
         // Punchy ascending fanfare — square + saw
         [[392,'square'],[523,'square'],[659,'square'],[784,'square'],[1047,'square']].forEach(([f,type],i) => {
           osc(f, type, t + i * 0.10, 0.18, 0.22);
@@ -497,7 +497,7 @@
         noise(t, 0.06, 0.15);
       },
       winO() {
-        const t = ctx().currentTime;
+        const t = getAC().currentTime;
         // Smooth ascending fanfare — sine
         [[330,'sine'],[440,'sine'],[550,'sine'],[660,'sine'],[880,'sine']].forEach(([f,type],i) => {
           osc(f, type, t + i * 0.10, 0.20, 0.22);
@@ -505,14 +505,14 @@
         [440,550,660,880].forEach(f => osc(f,'sine', t + 0.55, 0.5, 0.12));
       },
       draw() {
-        const t = ctx().currentTime;
+        const t = getAC().currentTime;
         osc(440, 'triangle', t,        0.18, 0.2);
         osc(370, 'triangle', t + 0.20, 0.18, 0.18);
         osc(311, 'triangle', t + 0.40, 0.30, 0.18);
         osc(277, 'triangle', t + 0.65, 0.40, 0.14);
       },
       click() {
-        const t = ctx().currentTime;
+        const t = getAC().currentTime;
         noise(t, 0.04, 0.12);
         osc(200, 'sine', t, 0.06, 0.1, 80);
       }
