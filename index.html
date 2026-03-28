@@ -435,6 +435,90 @@
   </div>
 
   <script>
+    // ─── Audio Engine (Web Audio API — no external files) ──────────
+    const AC = window.AudioContext || window.webkitAudioContext;
+    let ac = null;
+
+    function ctx() {
+      if (!ac) ac = new AC();
+      if (ac.state === 'suspended') ac.resume();
+      return ac;
+    }
+
+    function osc(freq, type, start, dur, vol, freqEnd) {
+      const c = ctx();
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.connect(g); g.connect(c.destination);
+      o.type = type;
+      o.frequency.setValueAtTime(freq, start);
+      if (freqEnd !== undefined) o.frequency.exponentialRampToValueAtTime(freqEnd, start + dur);
+      g.gain.setValueAtTime(vol, start);
+      g.gain.exponentialRampToValueAtTime(0.001, start + dur);
+      o.start(start); o.stop(start + dur + 0.01);
+    }
+
+    function noise(start, dur, vol) {
+      const c = ctx();
+      const buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const filt = c.createBiquadFilter();
+      filt.type = 'bandpass'; filt.frequency.value = 1200; filt.Q.value = 0.8;
+      const g = c.createGain();
+      src.connect(filt); filt.connect(g); g.connect(c.destination);
+      g.gain.setValueAtTime(vol, start);
+      g.gain.exponentialRampToValueAtTime(0.001, start + dur);
+      src.start(start); src.stop(start + dur + 0.01);
+    }
+
+    const SFX = {
+      placeX() {
+        const t = ctx().currentTime;
+        osc(520, 'square', t,        0.04, 0.25, 800);
+        osc(800, 'square', t + 0.04, 0.06, 0.15, 600);
+        noise(t, 0.05, 0.08);
+      },
+      placeO() {
+        const t = ctx().currentTime;
+        osc(350, 'sine', t,        0.08, 0.28, 420);
+        osc(700, 'sine', t + 0.06, 0.10, 0.12, 560);
+      },
+      winX() {
+        const t = ctx().currentTime;
+        // Punchy ascending fanfare — square + saw
+        [[392,'square'],[523,'square'],[659,'square'],[784,'square'],[1047,'square']].forEach(([f,type],i) => {
+          osc(f, type, t + i * 0.10, 0.18, 0.22);
+        });
+        // Chord sting
+        [523,659,784,1047].forEach(f => osc(f,'sine', t + 0.55, 0.5, 0.12));
+        noise(t, 0.06, 0.15);
+      },
+      winO() {
+        const t = ctx().currentTime;
+        // Smooth ascending fanfare — sine
+        [[330,'sine'],[440,'sine'],[550,'sine'],[660,'sine'],[880,'sine']].forEach(([f,type],i) => {
+          osc(f, type, t + i * 0.10, 0.20, 0.22);
+        });
+        [440,550,660,880].forEach(f => osc(f,'sine', t + 0.55, 0.5, 0.12));
+      },
+      draw() {
+        const t = ctx().currentTime;
+        osc(440, 'triangle', t,        0.18, 0.2);
+        osc(370, 'triangle', t + 0.20, 0.18, 0.18);
+        osc(311, 'triangle', t + 0.40, 0.30, 0.18);
+        osc(277, 'triangle', t + 0.65, 0.40, 0.14);
+      },
+      click() {
+        const t = ctx().currentTime;
+        noise(t, 0.04, 0.12);
+        osc(200, 'sine', t, 0.06, 0.1, 80);
+      }
+    };
+    // ───────────────────────────────────────────────────────────────
+
     const WINS = [
       [0,1,2],[3,4,5],[6,7,8],
       [0,3,6],[1,4,7],[2,5,8],
@@ -462,6 +546,7 @@
       cell.classList.remove('pop');
       void cell.offsetWidth;
       cell.classList.add('pop');
+      current === 'X' ? SFX.placeX() : SFX.placeO();
 
       const winLine = checkWin();
       if (winLine) {
@@ -475,6 +560,7 @@
         scores.draw++;
         updateScores();
         gameOver = true;
+        SFX.draw();
         setTimeout(() => celebrate(null, true), 700);
       } else {
         current = current === 'X' ? 'O' : 'X';
@@ -482,12 +568,14 @@
       }
     }));
 
-    document.getElementById('restart').addEventListener('click', reset);
+    document.getElementById('restart').addEventListener('click', () => { SFX.click(); reset(); });
     document.getElementById('reset-scores').addEventListener('click', () => {
+      SFX.click();
       scores.X = 0; scores.O = 0; scores.draw = 0;
       updateScores();
     });
     document.getElementById('play-again').addEventListener('click', () => {
+      SFX.click();
       overlay.classList.remove('show');
       stopParticles();
       reset();
@@ -535,6 +623,7 @@
         playerEl.textContent   = player;
         playerEl.className     = `win-player ${player.toLowerCase()}`;
         labelEl.textContent    = 'WINS!';
+        player === 'X' ? SFX.winX() : SFX.winO();
         startParticles(
           player === 'X'
             ? ['#ff2d6b','#ff8c42','#ffd700','#ff2d6b','#ffffff']
