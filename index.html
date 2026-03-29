@@ -439,17 +439,25 @@
     const AC = window.AudioContext || window.webkitAudioContext;
     let ac = null;
 
-    // play(fn) — the only correct way to schedule Web Audio:
-    // 1. Create context lazily (requires no gesture)
-    // 2. resume() returns a Promise; await it so currentTime is live before scheduling
-    // 3. fn(ctx, now) receives a running context and a fresh timestamp
+    // On HTTPS, browsers block AudioContext until a user gesture.
+    // Create + resume eagerly on the very first click (capture phase)
+    // so the context is already running by the time game handlers fire.
+    document.addEventListener('click', function bootstrap() {
+      try {
+        if (!ac) ac = new AC();
+        if (ac.state !== 'running') ac.resume().catch(() => {});
+      } catch(e) {}
+      document.removeEventListener('click', bootstrap, true);
+    }, true);
+
     function play(fn) {
       try {
         if (!ac) ac = new AC();
-        (ac.state === 'running'
-          ? Promise.resolve()
-          : ac.resume()
-        ).then(() => fn(ac, ac.currentTime)).catch(() => {});
+        if (ac.state === 'running') {
+          fn(ac, ac.currentTime);
+        } else {
+          ac.resume().then(() => fn(ac, ac.currentTime)).catch(() => {});
+        }
       } catch(e) {}
     }
 
