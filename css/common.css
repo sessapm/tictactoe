@@ -1,0 +1,159 @@
+:root {
+  --bg-dark: #070718;
+  --neon-pink: #ff2d6b;
+  --neon-blue: #00d4ff;
+  --neon-purple: #a855f7;
+  --neon-yellow: #ffd700;
+  --font-main: 'Orbitron', monospace;
+}
+
+* { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+}
+
+body {
+  background: var(--bg-dark);
+  font-family: var(--font-main);
+  color: #eee;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Animated perspective grid */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -100% 0 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.06) 1px, transparent 1px);
+  background-size: 50px 50px;
+  transform: perspective(400px) rotateX(40deg);
+  animation: gridScroll 12s linear infinite;
+  z-index: 0;
+}
+
+@keyframes gridScroll {
+  from { background-position: 0 0; }
+  to   { background-position: 0 50px; }
+}
+
+/* Ambient glow orbs */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 15% 50%, rgba(255,45,107,0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 50%, rgba(0,212,255,0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 10%, rgba(168,85,247,0.12) 0%, transparent 50%);
+  z-index: 0;
+}
+
+h1 {
+  font-size: 2.8rem;
+  font-weight: 900;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, var(--neon-pink) 0%, var(--neon-purple) 50%, var(--neon-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 25px rgba(168,85,247,0.6));
+  animation: titleGlow 3s ease-in-out infinite;
+  position: relative;
+  z-index: 10;
+}
+
+@keyframes titleGlow {
+  0%, 100% { filter: drop-shadow(0 0 20px rgba(168,85,247,0.5)); }
+  50%      { filter: drop-shadow(0 0 45px rgba(168,85,247,1)); }
+}
+
+/* Common Buttons */
+button {
+  font-family: var(--font-main);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.btn-primary {
+  padding: 0.9rem 2.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple));
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(255,45,107,0.4);
+}
+
+.btn-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(255,45,107,0.65);
+}
+
+.btn-secondary {
+  padding: 0.65rem 1.2rem;
+  font-size: 0.75rem;
+  background: transparent;
+  color: #888;
+  border: 1px solid #333;
+}
+
+.btn-secondary:hover {
+  color: var(--neon-purple);
+  border-color: var(--neon-purple);
+  box-shadow: 0 0 12px rgba(168,85,247,0.3);
+}
+
+/* Screen Shake effect */
+@keyframes screenShake {
+  0%, 100% { transform: translate(0,0) rotate(0deg); }
+  10%  { transform: translate(-8px,-4px) rotate(-0.5deg); }
+  20%  { transform: translate( 8px, 4px) rotate( 0.5deg); }
+  30%  { transform: translate(-6px, 5px) rotate(-0.3deg); }
+  40%  { transform: translate( 6px,-5px) rotate( 0.3deg); }
+  60%  { transform: translate( 4px,-2px) rotate( 0.2deg); }
+  80%  { transform: translate( 2px,-1px); }
+}
+
+.shake { animation: screenShake 0.55s ease; }
+
+/* Overlay styles */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(7,7,24,0.88);
+  backdrop-filter: blur(6px);
+}
+
+.overlay.show {
+  display: flex;
+  animation: fadeIn 0.35s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.overlay-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}

@@ -2,7 +2,8 @@
   "name": "tictactoe",
   "version": "1.0.0",
   "scripts": {
-    "test": "playwright test"
+    "test": "playwright test",
+    "start": "npx serve ."
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0"

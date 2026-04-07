@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tic-Tac-Toe | Cyber Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/common.css">
+  <style>
+    .game-container {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.4rem;
+    }
+
+    #scores {
+      display: flex;
+      gap: 2.5rem;
+    }
+
+    .score-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+    }
+
+    .score-label {
+      font-size: 0.65rem;
+      letter-spacing: 3px;
+      color: #555;
+    }
+
+    .score-val {
+      font-size: 2.2rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .score-x    { color: var(--neon-pink); text-shadow: 0 0 15px var(--neon-pink); }
+    .score-draw { color: var(--neon-purple); text-shadow: 0 0 15px var(--neon-purple); }
+    .score-o    { color: var(--neon-blue); text-shadow: 0 0 15px var(--neon-blue); }
+
+    #status {
+      font-size: 1rem;
+      letter-spacing: 4px;
+      min-height: 1.4rem;
+      color: #888;
+    }
+
+    .board-wrapper { perspective: 900px; }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 115px);
+      grid-template-rows:    repeat(3, 115px);
+      gap: 10px;
+      transform-style: preserve-3d;
+      transform: rotateX(8deg) rotateY(0deg);
+      transition: transform 0.4s ease;
+    }
+
+    #board:hover { transform: rotateX(0deg) rotateY(0deg); }
+
+    .cell {
+      background: linear-gradient(145deg, #0e0e2e, #131340);
+      border: 1px solid rgba(80,80,180,0.25);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3.2rem;
+      font-weight: 900;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04);
+      position: relative;
+      user-select: none;
+    }
+
+    .cell:hover:not(.taken) {
+      transform: translateZ(22px) scale(1.06);
+      background: linear-gradient(145deg, #13133d, #1c1c55);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.7), 0 0 25px rgba(120,120,255,0.25);
+    }
+
+    .cell.x { color: var(--neon-pink); text-shadow: 0 0 18px var(--neon-pink); border-color: rgba(255,45,107,0.35); }
+    .cell.o { color: var(--neon-blue); text-shadow: 0 0 18px var(--neon-blue); border-color: rgba(0,212,255,0.35); }
+
+    .cell.win { animation: winPop 0.55s ease-in-out infinite alternate; }
+    @keyframes winPop { from { transform: translateZ(8px)  scale(1); } to { transform: translateZ(28px) scale(1.1); } }
+    .cell.pop { animation: placePop 0.35s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes placePop { 0% { transform: scale(0.4); } 65% { transform: scale(1.2); } 100% { transform: scale(1); } }
+
+    .buttons { display: flex; gap: 0.8rem; margin-top: 0.3rem; }
+    
+    .nav-back {
+      position: fixed;
+      top: 2rem;
+      left: 2rem;
+      z-index: 100;
+      text-decoration: none;
+      color: #666;
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.3s;
+    }
+    .nav-back:hover { color: var(--neon-blue); }
+
+    /* Win Styles */
+    .win-eyebrow { font-size: 0.85rem; letter-spacing: 8px; color: #666; margin-bottom: 0.4rem; }
+    .win-player { font-size: 7rem; font-weight: 900; line-height: 0.95; letter-spacing: 6px; }
+    .win-player.x { background: linear-gradient(135deg, var(--neon-pink), #ff8c42); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px var(--neon-pink)); }
+    .win-player.o { background: linear-gradient(135deg, var(--neon-blue), #00ffaa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px var(--neon-blue)); }
+    .win-player.draw { background: linear-gradient(135deg, var(--neon-purple), var(--neon-yellow)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 30px var(--neon-purple)); }
+    .win-label { font-size: 2rem; font-weight: 700; letter-spacing: 10px; color: var(--neon-yellow); text-shadow: 0 0 20px var(--neon-yellow); margin-top: 0.3rem; }
+  </style>
+</head>
+<body>
+  <a href="index.html" class="nav-back">« BACK TO PORTAL</a>
+
+  <div class="game-container">
+    <h1>Tic-Tac-Toe</h1>
+
+    <div id="scores">
+      <div class="score-item">
+        <span class="score-label">PLAYER X</span>
+        <span class="score-val score-x" id="score-x">0</span>
+      </div>
+      <div class="score-item">
+        <span class="score-label">DRAWS</span>
+        <span class="score-val score-draw" id="score-draw">0</span>
+      </div>
+      <div class="score-item">
+        <span class="score-label">PLAYER O</span>
+        <span class="score-val score-o" id="score-o">0</span>
+      </div>
+    </div>
+
+    <div id="status">X'S TURN</div>
+
+    <div class="board-wrapper">
+      <div id="board">
+        <div class="cell" data-index="0"></div>
+        <div class="cell" data-index="1"></div>
+        <div class="cell" data-index="2"></div>
+        <div class="cell" data-index="3"></div>
+        <div class="cell" data-index="4"></div>
+        <div class="cell" data-index="5"></div>
+        <div class="cell" data-index="6"></div>
+        <div class="cell" data-index="7"></div>
+        <div class="cell" data-index="8"></div>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="restart" class="btn-primary">New Game</button>
+      <button id="reset-scores" class="btn-secondary">Reset Scores</button>
+    </div>
+  </div>
+
+  <div id="win-overlay" class="overlay">
+    <canvas id="win-canvas" class="overlay-canvas"></canvas>
+    <div class="overlay-content" style="text-align: center;">
+      <div class="win-eyebrow" id="win-eyebrow">PLAYER</div>
+      <div class="win-player" id="win-player">X</div>
+      <div class="win-label"  id="win-label">WINS!</div>
+      <button id="play-again" class="btn-primary" style="margin-top: 2rem;">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <script src="js/shared.js"></script>
+  <script>
+    const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    let board = Array(9).fill(null);
+    let current = 'X';
+    let gameOver = false;
+    let particleSystem = null;
+
+    const saved = JSON.parse(localStorage.getItem('ttt-scores') || 'null');
+    const scores = saved || { X: 0, O: 0, draw: 0 };
+
+    const cells    = document.querySelectorAll('.cell');
+    const statusEl = document.getElementById('status');
+    const overlay  = document.getElementById('win-overlay');
+
+    cells.forEach(cell => cell.addEventListener('click', () => {
+      const i = +cell.dataset.index;
+      if (gameOver || board[i]) return;
+
+      board[i] = current;
+      cell.textContent = current;
+      cell.classList.add(current.toLowerCase(), 'taken');
+      cell.classList.remove('pop');
+      void cell.offsetWidth;
+      cell.classList.add('pop');
+      SFX.move();
+
+      const winLine = checkWin();
+      if (winLine) {
+        winLine.forEach(idx => cells[idx].classList.add('win'));
+        scores[current]++;
+        updateScores();
+        gameOver = true;
+        setTimeout(() => celebrate(current, false), 700);
+      } else if (board.every(Boolean)) {
+        statusEl.textContent = "IT'S A DRAW!";
+        scores.draw++;
+        updateScores();
+        gameOver = true;
+        SFX.click();
+        setTimeout(() => celebrate(null, true), 700);
+      } else {
+        current = current === 'X' ? 'O' : 'X';
+        statusEl.textContent = `${current}'S TURN`;
+      }
+    }));
+
+    document.getElementById('restart').addEventListener('click', () => { SFX.click(); reset(); });
+    document.getElementById('reset-scores').addEventListener('click', () => {
+      SFX.click();
+      scores.X = 0; scores.O = 0; scores.draw = 0;
+      updateScores();
+    });
+    document.getElementById('play-again').addEventListener('click', () => {
+      SFX.click();
+      overlay.classList.remove('show');
+      if (particleSystem) particleSystem.stop();
+      reset();
+    });
+
+    function checkWin() { return WINS.find(line => line.every(i => board[i] === current)) || null; }
+    function updateScores() {
+      document.getElementById('score-x').textContent = scores.X;
+      document.getElementById('score-o').textContent = scores.O;
+      document.getElementById('score-draw').textContent = scores.draw;
+      localStorage.setItem('ttt-scores', JSON.stringify(scores));
+    }
+    function reset() {
+      board.fill(null); current = 'X'; gameOver = false;
+      statusEl.textContent = "X'S TURN";
+      cells.forEach(c => { c.textContent = ''; c.className = 'cell'; });
+    }
+    function celebrate(player, isDraw) {
+      document.body.classList.remove('shake');
+      void document.body.offsetWidth;
+      document.body.classList.add('shake');
+
+      const eyebrow = document.getElementById('win-eyebrow');
+      const playerEl = document.getElementById('win-player');
+      const labelEl = document.getElementById('win-label');
+
+      if (isDraw) {
+        eyebrow.style.display = 'none';
+        playerEl.textContent = 'DRAW';
+        playerEl.className = 'win-player draw';
+        labelEl.textContent = 'GOOD GAME!';
+        particleSystem = startParticles(document.getElementById('win-canvas'), ['#a855f7','#ffd700','#ff2d6b','#00d4ff','#ffffff']);
+      } else {
+        eyebrow.style.display = '';
+        playerEl.textContent = player;
+        playerEl.className = `win-player ${player.toLowerCase()}`;
+        labelEl.textContent = 'WINS!';
+        SFX.win();
+        particleSystem = startParticles(document.getElementById('win-canvas'), 
+          player === 'X' ? ['#ff2d6b','#ff8c42','#ffd700','#ffffff'] : ['#00d4ff','#00ffaa','#a855f7','#ffffff']);
+      }
+      overlay.classList.add('show');
+    }
+    updateScores();
+  </script>
+</body>
+</html>

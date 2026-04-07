@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cyber Maze | Cyber Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/common.css">
+  <style>
+    .game-layer {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    .maze-viewport {
+      position: relative;
+      overflow: visible;
+      animation: mazeZoom 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      transform-origin: center center;
+    }
+    @keyframes mazeZoom {
+      0% { transform: scale(2.5); opacity: 0; filter: blur(10px); }
+      100% { transform: scale(1); opacity: 1; filter: blur(0); }
+    }
+    canvas {
+      border: 2px solid rgba(0, 212, 255, 0.3);
+      border-radius: 8px;
+      box-shadow: 0 0 40px rgba(0, 212, 255, 0.2);
+      background: rgba(10, 10, 30, 0.9);
+      cursor: crosshair;
+      touch-action: none; /* Critical for mobile dragging */
+    }
+    .maze-info {
+      display: flex;
+      gap: 2rem;
+      font-size: 0.9rem;
+      letter-spacing: 2px;
+      color: #888;
+    }
+    .maze-info span { color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); }
+    .nav-back {
+      position: fixed;
+      top: 2rem; left: 2rem;
+      z-index: 100;
+      text-decoration: none;
+      color: #666;
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      transition: color 0.3s;
+    }
+    .nav-back:hover { color: var(--neon-blue); }
+
+    #win-message {
+      color: var(--neon-yellow);
+      font-size: 3rem;
+      font-weight: 900;
+      text-shadow: 0 0 20px var(--neon-yellow);
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <a href="index.html" class="nav-back">« BACK TO PORTAL</a>
+
+  <div class="game-layer">
+    <h1>Cyber Maze</h1>
+    <div class="maze-info">
+      <div>LEVEL: <span id="level-val">1</span></div>
+      <div>MOVES: <span id="moves-val">0</span></div>
+    </div>
+    <div class="maze-viewport">
+      <canvas id="mazeCanvas"></canvas>
+    </div>
+    <div class="buttons">
+      <button id="resetMaze" class="btn-primary">Generate New Maze</button>
+    </div>
+  </div>
+
+  <div id="win-overlay" class="overlay">
+    <canvas id="win-canvas" class="overlay-canvas"></canvas>
+    <div style="text-align: center;">
+      <div id="win-message">CORE REACHED</div>
+      <div style="color: #888; letter-spacing: 4px; margin-bottom: 2rem;">SYSTEMS STABILIZED</div>
+      <button id="next-level" class="btn-primary">INIT NEXT SEQUENCE</button>
+    </div>
+  </div>
+
+  <script src="js/shared.js"></script>
+  <script>
+    const canvas = document.getElementById('mazeCanvas');
+    const ctx = canvas.getContext('2d');
+    const levelVal = document.getElementById('level-val');
+    const movesVal = document.getElementById('moves-val');
+    const overlay = document.getElementById('win-overlay');
+
+    let grid = [];
+    let stack = [];
+    let currentCell;
+    let player = { x: 0, y: 0 };
+    let cols, rows;
+    let size = 25; // cell size
+    let w, h;
+    let level = 1;
+    let moves = 0;
+    let particleSystem = null;
+    let isDragging = false;
+    let playerPath = []; // Track visited coordinates
+
+    class Cell {
+      constructor(i, j) {
+        this.i = i;
+        this.j = j;
+        this.walls = [true, true, true, true]; // top, right, bottom, left
+        this.visited = false;
+      }
+      checkNeighbors() {
+        let neighbors = [];
+        let top    = grid[index(this.i, this.j - 1)];
+        let right  = grid[index(this.i + 1, this.j)];
+        let bottom = grid[index(this.i, this.j + 1)];
+        let left   = grid[index(this.i - 1, this.j)];
+
+        if (top && !top.visited) neighbors.push(top);
+        if (right && !right.visited) neighbors.push(right);
+        if (bottom && !bottom.visited) neighbors.push(bottom);
+        if (left && !left.visited) neighbors.push(left);
+
+        if (neighbors.length > 0) {
+          let r = Math.floor(Math.random() * neighbors.length);
+          return neighbors[r];
+        } else {
+          return undefined;
+        }
+      }
+      show() {
+        let x = this.i * size;
+        let y = this.j * size;
+        ctx.strokeStyle = 'rgba(0, 212, 255, 0.6)';
+        ctx.lineWidth = 2;
+        if (this.walls[0]) line(x, y, x + size, y);
+        if (this.walls[1]) line(x + size, y, x + size, y + size);
+        if (this.walls[2]) line(x + size, y + size, x, y + size);
+        if (this.walls[3]) line(x, y + size, x, y);
+      }
+    }
+
+    function index(i, j) {
+      if (i < 0 || j < 0 || i > cols - 1 || j > rows - 1) return -1;
+      return i + j * cols;
+    }
+
+    function line(x1, y1, x2, y2) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    function removeWalls(a, b) {
+      let x = a.i - b.i;
+      if (x === 1) { a.walls[3] = false; b.walls[1] = false; }
+      else if (x === -1) { a.walls[1] = false; b.walls[3] = false; }
+      let y = a.j - b.j;
+      if (y === 1) { a.walls[0] = false; b.walls[2] = false; }
+      else if (y === -1) { a.walls[2] = false; b.walls[0] = false; }
+    }
+
+    function initMaze() {
+      w = Math.min(window.innerWidth * 0.8, 600);
+      h = Math.min(window.innerHeight * 0.6, 600);
+      w = Math.floor(w / size) * size;
+      h = Math.floor(h / size) * size;
+      canvas.width = w;
+      canvas.height = h;
+      cols = w / size;
+      rows = h / size;
+
+      grid = [];
+      for (let j = 0; j < rows; j++) {
+        for (let i = 0; i < cols; i++) {
+          grid.push(new Cell(i, j));
+        }
+      }
+      currentCell = grid[0];
+      generate();
+      player = { i: 0, j: 0 };
+      playerPath = [{ i: 0, j: 0 }]; // Start path
+      moves = 0;
+      movesVal.textContent = moves;
+      draw();
+    }
+
+    function generate() {
+      while (true) {
+        currentCell.visited = true;
+        let next = currentCell.checkNeighbors();
+        if (next) {
+          next.visited = true;
+          stack.push(currentCell);
+          removeWalls(currentCell, next);
+          currentCell = next;
+        } else if (stack.length > 0) {
+          currentCell = stack.pop();
+        } else {
+          break;
+        }
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+      for (let cell of grid) cell.show();
+      
+      // Start Pad
+      ctx.fillStyle = 'rgba(0, 212, 255, 0.1)';
+      ctx.fillRect(4, 4, size-8, size-8);
+
+      // Path Trail (Glow effect)
+      if (playerPath.length > 1) {
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        
+        // Outer Glow
+        ctx.strokeStyle = 'rgba(255, 45, 107, 0.25)';
+        ctx.lineWidth = 8;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = 'var(--neon-pink)';
+        ctx.beginPath();
+        ctx.moveTo(playerPath[0].i * size + size / 2, playerPath[0].j * size + size / 2);
+        for (let p of playerPath) {
+          ctx.lineTo(p.i * size + size / 2, p.j * size + size / 2);
+        }
+        ctx.stroke();
+
+        // Inner Bright Line
+        ctx.strokeStyle = 'var(--neon-pink)';
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.moveTo(playerPath[0].i * size + size / 2, playerPath[0].j * size + size / 2);
+        for (let p of playerPath) {
+          ctx.lineTo(p.i * size + size / 2, p.j * size + size / 2);
+        }
+        ctx.stroke();
+      }
+
+      // Goal (Blue)
+      ctx.fillStyle = 'var(--neon-blue)';
+      ctx.shadowBlur = 40;
+      ctx.shadowColor = 'var(--neon-blue)';
+      ctx.fillRect((cols - 1) * size + 4, (rows - 1) * size + 4, size - 8, size - 8);
+
+      // Player (Pink)
+      ctx.fillStyle = 'var(--neon-pink)';
+      ctx.shadowBlur = 45;
+      ctx.shadowColor = 'var(--neon-pink)';
+      ctx.beginPath();
+      ctx.arc(player.i * size + size / 2, player.j * size + size / 2, size / 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    window.addEventListener('keydown', e => {
+      if (overlay.classList.contains('show')) return;
+      let cell = grid[index(player.i, player.j)];
+      let moved = false;
+      if ((e.key === 'ArrowUp' || e.key === 'w') && !cell.walls[0]) { player.j--; moved = true; }
+      if ((e.key === 'ArrowRight' || e.key === 'd') && !cell.walls[1]) { player.i++; moved = true; }
+      if ((e.key === 'ArrowDown' || e.key === 's') && !cell.walls[2]) { player.j++; moved = true; }
+      if ((e.key === 'ArrowLeft' || e.key === 'a') && !cell.walls[3]) { player.i--; moved = true; }
+
+      if (moved) {
+        moves++;
+        movesVal.textContent = moves;
+        playerPath.push({ i: player.i, j: player.j });
+        SFX.move();
+        draw();
+        if (player.i === cols - 1 && player.j === rows - 1) win();
+      }
+    });
+
+    // --- Pointer Events for Dragging ---
+    canvas.addEventListener('pointerdown', e => {
+      if (overlay.classList.contains('show')) return;
+      isDragging = true;
+      handlePointer(e);
+    });
+
+    window.addEventListener('pointerup', () => isDragging = false);
+
+    canvas.addEventListener('pointermove', e => {
+      if (isDragging) handlePointer(e);
+    });
+
+    function handlePointer(e) {
+      if (overlay.classList.contains('show')) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const j = Math.floor(y / size);
+      const i = Math.floor(x / size);
+
+      if (i === player.i && j === player.j) return;
+
+      // Check if the target is adjacent and there's no wall
+      let cell = grid[index(player.i, player.j)];
+      let moved = false;
+      
+      // Moving Right
+      if (i === player.i + 1 && j === player.j && !cell.walls[1]) { player.i++; moved = true; }
+      // Moving Left
+      else if (i === player.i - 1 && j === player.j && !cell.walls[3]) { player.i--; moved = true; }
+      // Moving Down
+      else if (i === player.i && j === player.j + 1 && !cell.walls[2]) { player.j++; moved = true; }
+      // Moving Up
+      else if (i === player.i && j === player.j - 1 && !cell.walls[0]) { player.j--; moved = true; }
+
+      if (moved) {
+        moves++;
+        movesVal.textContent = moves;
+        playerPath.push({ i: player.i, j: player.j });
+        SFX.move();
+        draw();
+        if (player.i === cols - 1 && player.j === rows - 1) {
+          isDragging = false;
+          win();
+        }
+      }
+    }
+
+    function win() {
+      SFX.win();
+      document.body.classList.add('shake');
+      setTimeout(() => document.body.classList.remove('shake'), 600);
+      particleSystem = startParticles(document.getElementById('win-canvas'), ['#ffd700','#00d4ff','#ff2d6b']);
+      overlay.classList.add('show');
+    }
+
+    document.getElementById('resetMaze').addEventListener('click', () => { SFX.click(); initMaze(); });
+    document.getElementById('next-level').addEventListener('click', () => {
+      SFX.click();
+      overlay.classList.remove('show');
+      if (particleSystem) particleSystem.stop();
+      level++;
+      levelVal.textContent = level;
+      size = Math.max(10, size - 1);
+      initMaze();
+    });
+
+    initMaze();
+  </script>
+</body>
+</html>
